@@ -1,9 +1,12 @@
 # automacao_desenhos_cod
+- [Introdução](#Introdução)
+- [Uso](#Uso)
 
+##Introdução
 Este programa tem por objetivo facilitar a liberação de desenhos novos e modificados para a pasta do servidor (Desenhos Fábrica).
 O programa NÃO substitui a conferência final pelo usuário, a impressão dos documentos, envio dos e-mails e correção das operações.
 
-Passo-a-passo:
+##Uso
 	1 - abra o arquivo executável - automacao_desenhos_cod.exe;
 	2 - tecle 'Enter' para iniciar o programa;
 	3 - o programa irá ler os arquivos na pasta Novos Desenhos e criar uma planilha (FLUXO DESENHOS.xlsx) 	contendo os códigos, deixando em branco uma coluna para preencher com a operação respectiva;
@@ -26,3 +29,4 @@ Passo-a-passo:
 
 Autor: @tpiccoli
 Rev 0 - 02/2025
+https://github.com/tpiccoli/automacao_desenhos_cod
