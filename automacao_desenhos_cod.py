@@ -9,36 +9,46 @@ import pandas as pd
 import os
 import shutil
 from openpyxl import load_workbook
-import time
-from datetime import date
-from openpyxl import Workbook, load_workbook
+#import time
+#from datetime import date
+#from openpyxl import Workbook, load_workbook
 from openpyxl.worksheet.datavalidation import DataValidation
+global atencao 
+atencao=[]
 
 #funções------------------------------------------------------------------------
-def mover_arquivos(mover_des, pasta_fabrica, pasta_obsoletos, pasta_novos): #desenhos existentes
+def mover_arquivos(subst_des, pasta_fabrica, pasta_obsoletos, pasta_novos): #desenhos existentes    
     for arquivo in subst_des:
         # Procurar arquivos com o mesmo nome (considerar quaisquer extensões)
-        arquivo_str = str(arquivo)
+        #arquivo_str = str(arquivo)
         for extensao in ['.dxf', '.PDF', '.x_t']:
-            arquivo_fabrica = os.path.join(pasta_fabrica, arquivo_str + extensao)
-            arquivo_novos = os.path.join(pasta_novos, arquivo_str + extensao)
-            arquivo_obsoletos = os.path.join(pasta_obsoletos, arquivo_str + extensao)
+            arquivo_fabrica = os.path.join(pasta_fabrica, arquivo + extensao)
+            arquivo_novos = os.path.join(pasta_novos, arquivo + extensao)
+            arquivo_obsoletos = os.path.join(pasta_obsoletos, arquivo + extensao)
             
             # Mover da pasta desenhos fabrica para pasta obsoletos
             if os.path.exists(arquivo_fabrica):
-                shutil.move(arquivo_fabrica, arquivo_obsoletos)
-            
+                try: 
+                    shutil.move(arquivo_fabrica, arquivo_obsoletos)
+                except: #miscelânea de erros
+                    print(arquivo," Não pode ser substituído")
+                    atencao.append(arquivo)
+                    continue
             # Copiar da pasta novos desenhos para pasta desenhos fabrica
             if os.path.exists(arquivo_novos):
-                shutil.copy2(arquivo_novos, arquivo_fabrica)
-                print(arquivo," copiado para Desenhos Fabrica")
-                os.remove(arquivo_novos)# Deletar da pasta novos desenhos
-                
+                try:
+                    shutil.copy2(arquivo_novos, arquivo_fabrica)
+                    print(arquivo," copiado para Desenhos Fabrica")
+                    os.remove(arquivo_novos)# Deletar da pasta novos desenhos
+                except:
+                    print(arquivo," Não pode ser substituído")
+                    atencao.append(arquivo)
+                    continue
             else:
                 pass
 
-def novo_arquivos(subst_des, pasta_fabrica, pasta_novos): #desenhos novos
-    for arquivo in mover_des:
+def novo_arquivos(mover_des, pasta_fabrica, pasta_novos): #desenhos novos
+    for arquivo in mover_des: #para cada arquivo da lista de desenhos novos
         # Procurar arquivos com o mesmo nome (considerar quaisquer extensões)
         arquivo_str = str(arquivo)
         for extensao in ['.dxf', '.PDF', '.x_t']:
@@ -47,11 +57,17 @@ def novo_arquivos(subst_des, pasta_fabrica, pasta_novos): #desenhos novos
             
             # Copiar da pasta novos desenhos para pasta desenhos fabrica
             if os.path.exists(arquivo_novos):
-                shutil.copy2(arquivo_novos, arquivo_fabrica)
-                print(arquivo, 'Movido para pasta Desenhos Fábrica')
-                os.remove(arquivo_novos)
+                try:
+                    shutil.copy2(arquivo_novos, arquivo_fabrica)
+                    print(arquivo, 'Movido para pasta Desenhos Fábrica')
+                    os.remove(arquivo_novos)
+                except:
+                    print(arquivo," Não pode ser substituído")
+                    atencao.append(arquivo)
+                    continue
             else:
                 pass
+
 # Função para salvar lista em arquivo .txt
 def emails_lista(lista, nome_arquivo):
     with open(f'{nome_arquivo}.txt', 'w') as f:
@@ -61,19 +77,27 @@ def emails_lista(lista, nome_arquivo):
 def listar_des_nv(pasta_novos):
     arquivos_novos = []
     for arquivo in os.listdir(pasta_novos):
-        if arquivo.endswith(('.pdf','.PDF')):
-            arquivos_novos.append(arquivo)
+        if arquivo.lower().endswith('.pdf'):
+            arquivos_novos.append(os.path.splitext(arquivo)[0])
+            print('desenho pode ser novo: ', arquivo)
     return arquivos_novos
 
 def des_nv_ant(arquivos_pdf, pasta_fabrica): #verifica se o desenho novo já existe na pasta.
     arquivos_existentes = []
+    arquivos_a_remover = []
     for arquivo in arquivos_novos:
-        caminho_arquivo = os.path.join(pasta_fabrica, arquivo)
-        if os.path.exists(caminho_arquivo):
+        caminho_arquivo = os.path.join(pasta_fabrica, arquivo+".pdf")
+        caminho_arquivo2 = os.path.join(pasta_fabrica, arquivo+".PDF")
+        
+        if os.path.exists(caminho_arquivo) or os.path.exists(caminho_arquivo2):
             arquivos_existentes.append(arquivo)
-            arquivos_novos.remove(arquivo)
+            arquivos_a_remover.append(arquivo)
+            print('desenho não é novo, vai ser movido: ',arquivo)
         else:
+            print('desenho é realmente novo: ',arquivo)
             pass
+    for arquivo in arquivos_a_remover:
+        arquivos_novos.remove(arquivo)
         
     return arquivos_existentes
 #---------------------------------------------------
@@ -89,15 +113,15 @@ pasta_novos = 'P:\\Útil\\Desenhos Tecnicos\\Novos Desenhos'
 # pasta_obsoletos = r'C:\Users\tiago.piccoli\Desktop\Automacao_desenhos\des_obsletos'
 # pasta_novos = r'C:\Users\tiago.piccoli\Desktop\Automacao_desenhos\des_nv'
 
-dia=date.today()
-data_hj=dia.strftime('%d/%m/%Y')
+#dia=date.today()
+#data_hj=dia.strftime('%d/%m/%Y')
 arquivos_novos = listar_des_nv(pasta_novos) #gera lista com os arquivos novos
 arquivos_existentes = des_nv_ant(arquivos_novos, pasta_fabrica) #verifica se é desenho novo
 
 # Para os arquivos revisados (REVISADO)
 novos_dados_rev = pd.DataFrame([{
-    'CODIGO': str(arquivo)[:-4], 
-    'Data Liberação': data_hj,
+    'CODIGO': arquivo, 
+    #'Data Liberação': data_hj,
     'PROCESSOS':'',    
     'VERSAO': 'REVISADO',
     'FLUXO': 0,
@@ -106,30 +130,31 @@ novos_dados_rev = pd.DataFrame([{
 
 # Para os arquivos novos (DESENHO NOVO)
 novos_dados_nv = pd.DataFrame([{
-    'CODIGO': str(arquivo)[:-4], 
-    'Data Liberação': data_hj,
+    #'CODIGO': os.path.splitext(arquivo)[0],
+    #'Data Liberação': data_hj,
+    'CODIGO': arquivo,
     'PROCESSOS':'',    
     'VERSAO': 'DESENHO NOVO',
     'FLUXO': 0,
     'OBS':''
 } for arquivo in arquivos_novos])
 
-# Concatenar os novos dados com o DataFrame existente
+# Concatenar o DF dos arquivos novos e dos revisados
 df = pd.concat([novos_dados_nv, novos_dados_rev], ignore_index=True)
 
-# Salvar o DataFrame atualizado de volta no arquivo Excel
+# Salvar o DataFrame no Excel
 df.to_excel('FLUXO DESENHOS.xlsx', index=False, engine='openpyxl')
 
-# Carregar o workbook e a sheet
+# Carregar o workbook e a planilha
 wb = load_workbook('FLUXO DESENHOS.xlsx')
 ws = wb.active
 
 # Definir as opções da lista suspensa
 opcoes_lista = [
-    "LASER", "LASER, DOBRA", "USINAGEM", "SERRA", "MONTAGEM", "PRE MONTAGEM",
+    "LASER", "LASER e DOBRA", "USINAGEM", "SERRA", "MONTAGEM", "PRE-MONTAGEM",
     "TERCEIROS", "ALIMENTADORES", "SOLDA", "FONTES", "COMPRADO", "CENTRO",
-    "OUTROS", "SERRA, CENTRO", "ROSQUEAMENTO", "GRAVADOR", "SERRA, TORNO",
-    "SERRA, TORNO, CENTRO", "DOBRA", "SEM ROTEIRO"
+    "OUTROS", "SERRA e CENTRO", "ROSQUEAMENTO", "GRAVADOR", "SERRA e TORNO",
+    "SERRA - TORNO - CENTRO", "DOBRA", "SEM ROTEIRO"
 ]
 
 # Criar a validação de dados (drop-down)
@@ -140,8 +165,8 @@ dv = DataValidation(
     showDropDown=True
 )
 
-# Adicionar a validação de dados à coluna "PROCESSOS"
-coluna_processos = ws['C']
+# Validação de dados à coluna "PROCESSOS"
+coluna_processos = ws['B']
 for cell in coluna_processos[1:]:
     dv.add(cell)
 
@@ -150,7 +175,7 @@ ws.add_data_validation(dv)
 
 # Salvar o workbook atualizado
 wb.save('FLUXO DESENHOS.xlsx')
-
+print('-------------------------------------------------')
 print('Relatório para preenchimento de PROCESSO/OPERAÇÃO')
 
 input('Por favor, abra a planilha, preencha a coluna "PROCESSOS" a partir do roteiro do item, salve, feche e tecle Enter quando tiver concluído.')
@@ -166,77 +191,96 @@ atencao=[]
 mover_des=[] #lista para função de operação de desenhos novos
 subst_des=[] #lista para função de operação de desenhos antigos
 
+df['OBS'] = df['OBS'].astype('object')
+
 for index, row in df.iterrows(): #Algoritmo
     fluxo = row['FLUXO']
-    codigo = row['CODIGO']
+    codigo = str(row['CODIGO'])
     versao = row['VERSAO']
     processos = row['PROCESSOS']
     obs=row['OBS']
     
     #verificar se é desenho novo, vendo se há existência do arquivo na pasta.
     
-    if versao=="DESENHO NOVO":
-        mover_des.append(str(codigo))
+    if codigo in arquivos_novos:
         
         if processos in ('COMPRADO','TERCEIROS'):
-            cod_compras.append(str(codigo))
+            cod_compras.append(codigo)
             df.at[index, 'FLUXO'] = 1
             df.at[index, 'OBS']="Desenho Movido"
-            df.at[index, 'Data Liberação']=data_hj
+            #df.at[index, 'Data Liberação']=data_hj
+            mover_des.append(codigo)
+            continue
             
-        if processos in ('MONTAGEM', 'PRE MONTAGEM', 'ALIMENTADORES', 'SERRA','FONTES','GRAVADOR'):
+        elif processos in ('MONTAGEM', 'PRE-MONTAGEM', 'ALIMENTADORES', 'SERRA','FONTES','GRAVADOR'):
             df.at[index, 'FLUXO'] = 1
             df.at[index, 'OBS']="Desenho Movido"
-            df.at[index, 'Data Liberação']=data_hj
-            
-        if processos in ('LASER','LASER, DOBRA'):
-            cod_laser.append(str(codigo))
-            ver_impressao_cq.append(str(codigo))
+            #df.at[index, 'Data Liberação']=data_hj
+            mover_des.append(codigo)
+            continue
+        
+        elif processos in ('LASER','LASER e DOBRA'):
+            cod_laser.append(codigo)
+            ver_impressao_cq.append(codigo)
             df.at[index, 'FLUXO'] = 1
             df.at[index, 'OBS']="Desenho Movido, Verificar CQ e Imprimir"
-            df.at[index, 'Data Liberação']=data_hj
-            
-        if processos in ('USINAGEM','SOLDA','SERRA,CENTRO','SERRA, TORNO, CENTRO','SERRA, TORNO'):
-            ver_impressao_cq.append(str(codigo))
+            #df.at[index, 'Data Liberação']=data_hj
+            mover_des.append(codigo)
+            continue
+        
+        elif processos in ('USINAGEM','SOLDA','SERRA e CENTRO','SERRA - TORNO - CENTRO','SERRA e TORNO'):
+            ver_impressao_cq.append(codigo)
             df.at[index, 'FLUXO'] = 1      
             df.at[index, 'OBS']="Desenho Movido, Verificar CQ e Imprimir"
-            df.at[index, 'Data Liberação']=data_hj
+            #df.at[index, 'Data Liberação']=data_hj
+            mover_des.append(codigo)
+            continue
         else:
             atencao.append(codigo)
-            mover_des.remove(codigo)
-            
-    if versao=="REVISADO":
-        subst_des.append(str(codigo))
+            df.at[index, 'OBS']="Desenho NÃO MANIPULADO por não se enquadrar em nenhum processo, VERIFICAR"
+            continue
+    elif codigo in arquivos_existentes:
         
-        if processos in ("LASER","LASER, DOBRA"):
+        if processos in ("LASER","LASER e DOBRA"):
             cod_laser.append(codigo)
             ver_impressao_cq.append(codigo)
             df.at[index, 'FLUXO'] = 1
             df.at[index, 'OBS']="Desenho Substituído, Verificar/Atualizar CQ caso haja e Imprimir"
-            df.at[index, 'Data Liberação']=data_hj
+            #df.at[index, 'Data Liberação']=data_hj
+            subst_des.append(codigo)
+            continue
             
-        if processos in ("TERCEIROS","COMPRADO"):
+        elif processos in ("TERCEIROS","COMPRADO"):
             cod_qualidade.append(codigo)
             df.at[index, 'FLUXO'] = 1
             df.at[index, 'OBS']="Desenho Substituído, E-mail Suprimentos e Qualidade"
-            df.at[index, 'Data Liberação']=data_hj
-            
-        if processos in ('USINAGEM','SOLDA'):
+            #df.at[index, 'Data Liberação']=data_hj
+            subst_des.append(codigo)
+            continue
+        
+        elif processos in ('USINAGEM','SOLDA','SERRA e CENTRO','SERRA - TORNO - CENTRO','SERRA e TORNO'):
             ver_impressao_cq.append(codigo)
             df.at[index, 'FLUXO'] = 1
             df.at[index, 'OBS']="Desenho Substituído, Verificar/Atualizar CQ caso haja e Imprimir"
-            df.at[index, 'Data Liberação']=data_hj
-            
-        if processos in ('MONTAGEM', 'PRE MONTAGEM', 'ALIMENTADORES', 'SERRA','FONTES','GRAVADOR'):
+            #df.at[index, 'Data Liberação']=data_hj
+            subst_des.append(codigo)
+            continue
+        
+        elif processos in ('MONTAGEM', 'PRE-MONTAGEM', 'ALIMENTADORES', 'SERRA','FONTES','GRAVADOR'):
             df.at[index, 'FLUXO'] = 1
             df.at[index, 'OBS']="Desenho Substituído"
-            df.at[index, 'Data Liberação']=data_hj
+            #df.at[index, 'Data Liberação']=data_hj
+            subst_des.append(codigo)
+            continue
 
         else:
             atencao.append(codigo)
-            subst_des.remove(codigo)
+            df.at[index, 'OBS']="Desenho NÃO MANIPULADO por não se enquadrar em nenhum processo, VERIFICAR"
+            continue
     else:
         atencao.append(codigo)
+        df.at[index, 'OBS']="Desenho ignorado pelo algoritmo, VERIFICAR"
+        continue
 
 print('------------------------------------------------')
 novo_arquivos(mover_des, pasta_fabrica, pasta_novos)
