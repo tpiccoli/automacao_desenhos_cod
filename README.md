@@ -28,5 +28,6 @@ Este programa tem por objetivo facilitar a liberação de desenhos novos e modif
 	11. Fechar o programa e EXCLUIR a planilha "FLUXO DESENHOS.xlsx".
 
 Autor: @tpiccoli
+Rev A - 06/2025
 Rev 0 - 02/2025
 https://github.com/tpiccoli/automacao_desenhos_cod
