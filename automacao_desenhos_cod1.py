@@ -236,6 +236,7 @@ cod_compras = []
 cod_laser = []
 ver_impressao_cq = []
 atencao=[]
+sem_roteiro=[]
 
 mover_des=[] #lista para função de operação de desenhos novos
 subst_des=[] #lista para função de operação de desenhos antigos
@@ -284,6 +285,14 @@ for index, row in df.iterrows(): #Algoritmo
             #df.at[index, 'Data Liberação']=data_hj
             mover_des.append(codigo)
             continue
+
+        elif processos in ('SEM ROTEIRO'):
+            sem_roteiro.append(codigo)
+            df.at[index, 'FLUXO'] = 1      
+            df.at[index, 'OBS']="Desenho Movido, definir operação e ações do item"
+            #df.at[index, 'Data Liberação']=data_hj
+            mover_des.append(codigo)
+            continue
         else:
             atencao.append(codigo)
             df.at[index, 'OBS']="Desenho NÃO MANIPULADO por não se enquadrar em nenhum processo, VERIFICAR"
@@ -322,6 +331,14 @@ for index, row in df.iterrows(): #Algoritmo
             subst_des.append(codigo)
             continue
 
+        elif processos in ('SEM ROTEIRO'):
+            sem_roteiro.append(codigo)
+            df.at[index, 'FLUXO'] = 1      
+            df.at[index, 'OBS']="Desenho Substituído, definir operação e ações do item"
+            #df.at[index, 'Data Liberação']=data_hj
+            subst_des.append(codigo)
+            continue
+
         else:
             atencao.append(codigo)
             df.at[index, 'OBS']="Desenho NÃO MANIPULADO por não se enquadrar em nenhum processo, VERIFICAR"
@@ -344,5 +361,6 @@ emails_lista(cod_laser, 'cod_laser')
 emails_lista(cod_qualidade, 'cod_qualidade')
 emails_lista(ver_impressao_cq, 'ver_impressao_cq')
 emails_lista(atencao, 'VERIFICAR')
+emails_lista(sem_roteiro, 'sem_roteiro')
 
 input()
