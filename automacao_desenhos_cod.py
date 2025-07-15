@@ -3,6 +3,8 @@
 Created on Thu Jan 30 12:05:16 2025
 
 @author: tiago.piccoli
+
+#versão 0
 """
 
 import pandas as pd
