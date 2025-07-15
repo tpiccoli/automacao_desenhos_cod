@@ -4,7 +4,7 @@ Created on Thu Jan 30 12:05:16 2025
 
 @author: tiago.piccoli
 
-#versão 0
+#versao A
 """
 
 import pandas as pd
@@ -27,15 +27,23 @@ def mover_arquivos(subst_des, pasta_fabrica, pasta_obsoletos, pasta_novos): #des
             arquivo_fabrica = os.path.join(pasta_fabrica, arquivo + extensao)
             arquivo_novos = os.path.join(pasta_novos, arquivo + extensao)
             arquivo_obsoletos = os.path.join(pasta_obsoletos, arquivo + extensao)
-            
+ 
             # Mover da pasta desenhos fabrica para pasta obsoletos
             if os.path.exists(arquivo_fabrica):
-                try: 
-                    shutil.move(arquivo_fabrica, arquivo_obsoletos)
-                except: #miscelânea de erros
-                    print(arquivo," Não pode ser substituído")
-                    atencao.append(arquivo)
-                    continue
+                if extensao == '.dxf' and not os.path.exists(os.path.join(pasta_novos, arquivo + '.dxf')):
+                    # Se não houver novo arquivo .dxf, não mover para obsoletos
+                    print(f"Arquivo {arquivo}.dxf permanece na pasta Desenhos Fábrica")
+                elif extensao == '.x_t' and not os.path.exists(os.path.join(pasta_novos, arquivo + '.x_t')):
+                    # Se não houver novo arquivo .x_t, não mover para obsoletos
+                    print(f"Arquivo {arquivo}.x_t permanece na pasta Desenhos Fábrica")
+                else:
+                   try: 
+                       shutil.move(arquivo_fabrica, arquivo_obsoletos)
+                   except:
+                       print(arquivo, "Não pode ser substituído")
+                       atencao.append(arquivo)
+                       continue
+                   
             # Copiar da pasta novos desenhos para pasta desenhos fabrica
             if os.path.exists(arquivo_novos):
                 try:
@@ -46,6 +54,22 @@ def mover_arquivos(subst_des, pasta_fabrica, pasta_obsoletos, pasta_novos): #des
                     print(arquivo," Não pode ser substituído")
                     atencao.append(arquivo)
                     continue
+                
+            elif extensao == ".x_t": #verificacao de sufixo _0
+                arquivo_novos_0 = os.path.join(pasta_novos, arquivo + "_0" + extensao)
+                if os.path.exists(arquivo_novos_0):
+                    try:
+                        shutil.copy2(arquivo_novos_0, arquivo_fabrica)
+                        if os.path.exists(arquivo_novos):
+                            os.remove(arquivo_novos)
+                        os.rename(arquivo_novos_0, arquivo_fabrica)
+                        print(arquivo, 'Movido para pasta Desenhos Fábrica')      
+                    except:
+                        print(arquivo, "Não pode ser substituído")
+                        atencao.append(arquivo)
+                        continue
+                else:
+                    pass
             else:
                 pass
 
@@ -67,8 +91,32 @@ def novo_arquivos(mover_des, pasta_fabrica, pasta_novos): #desenhos novos
                     print(arquivo," Não pode ser substituído")
                     atencao.append(arquivo)
                     continue
+            elif extensao == ".x_t": #verificacao de sufixo _0
+                arquivo_novos_0 = os.path.join(pasta_novos, arquivo_str + "_0" + extensao)
+                if os.path.exists(arquivo_novos_0):
+                    try:
+                        shutil.copy2(arquivo_novos_0, arquivo_fabrica)
+                        if os.path.exists(arquivo_novos):
+                            os.remove(arquivo_novos)
+                        os.rename(arquivo_novos_0, arquivo_fabrica)
+                        print(arquivo, 'Movido para pasta Desenhos Fábrica')
+                    except:
+                        print(arquivo, "Não pode ser substituído")
+                        atencao.append(arquivo)
+                        continue
+                else:
+                    pass
             else:
                 pass
+
+def ler_planilha(caminho_planilha):
+    while True:
+        try:
+            df = pd.read_excel(caminho_planilha)
+            print("Planilha lida com sucesso!")
+            return df
+        except PermissionError:
+            input("Por favor, abra a planilha, preencha a coluna PROCESSOS a partir do roteiro do item, salve, feche e tecle Enter quando tiver concluído.")
 
 # Função para salvar lista em arquivo .txt
 def emails_lista(lista, nome_arquivo):
@@ -104,16 +152,16 @@ def des_nv_ant(arquivos_pdf, pasta_fabrica): #verifica se o desenho novo já exi
     return arquivos_existentes
 #---------------------------------------------------
 
-print("PROGRAMA FLUXO PARA LIBERAÇÃO DE DESENHOS, Versão 0")
+print("PROGRAMA FLUXO PARA LIBERAÇÃO DE DESENHOS, Versão A")
 input("Tecle 'Enter' para iniciar o programa")
 
-pasta_fabrica = 'P:\\Útil\\Desenhos Fábrica'
+pasta_fabrica = 'P:\\Útil\\Desenhos Tecnicos'
 pasta_obsoletos = 'P:\\Útil\\Desenhos Tecnicos\\OBSOLETOS'
 pasta_novos = 'P:\\Útil\\Desenhos Tecnicos\\Novos Desenhos'
 
-# pasta_fabrica = r'C:\Users\tiago.piccoli\Desktop\Automacao_desenhos\des_fabrica'
-# pasta_obsoletos = r'C:\Users\tiago.piccoli\Desktop\Automacao_desenhos\des_obsletos'
-# pasta_novos = r'C:\Users\tiago.piccoli\Desktop\Automacao_desenhos\des_nv'
+# pasta_fabrica = r'C:\Users\tiago.piccoli\des_fabrica'
+# pasta_obsoletos = r'C:\Users\tiago.piccoli\des_obsletos'
+# pasta_novos = r'C:\Users\tiago.piccoli\des_nv'
 
 #dia=date.today()
 #data_hj=dia.strftime('%d/%m/%Y')
@@ -182,13 +230,15 @@ print('Relatório para preenchimento de PROCESSO/OPERAÇÃO')
 
 input('Por favor, abra a planilha, preencha a coluna "PROCESSOS" a partir do roteiro do item, salve, feche e tecle Enter quando tiver concluído.')
 
-df=pd.read_excel('FLUXO DESENHOS.XLSX')
+caminho_planilha = "FLUXO DESENHOS.XLSX"
+df = ler_planilha(caminho_planilha)
 
 cod_qualidade = []
 cod_compras = []
 cod_laser = []
 ver_impressao_cq = []
 atencao=[]
+sem_roteiro=[]
 
 mover_des=[] #lista para função de operação de desenhos novos
 subst_des=[] #lista para função de operação de desenhos antigos
@@ -237,6 +287,14 @@ for index, row in df.iterrows(): #Algoritmo
             #df.at[index, 'Data Liberação']=data_hj
             mover_des.append(codigo)
             continue
+
+        elif processos in ('SEM ROTEIRO'):
+            sem_roteiro.append(codigo)
+            df.at[index, 'FLUXO'] = 1      
+            df.at[index, 'OBS']="Desenho Movido, definir operação e ações do item"
+            #df.at[index, 'Data Liberação']=data_hj
+            mover_des.append(codigo)
+            continue
         else:
             atencao.append(codigo)
             df.at[index, 'OBS']="Desenho NÃO MANIPULADO por não se enquadrar em nenhum processo, VERIFICAR"
@@ -275,6 +333,14 @@ for index, row in df.iterrows(): #Algoritmo
             subst_des.append(codigo)
             continue
 
+        elif processos in ('SEM ROTEIRO'):
+            sem_roteiro.append(codigo)
+            df.at[index, 'FLUXO'] = 1      
+            df.at[index, 'OBS']="Desenho Substituído, definir operação e ações do item"
+            #df.at[index, 'Data Liberação']=data_hj
+            subst_des.append(codigo)
+            continue
+
         else:
             atencao.append(codigo)
             df.at[index, 'OBS']="Desenho NÃO MANIPULADO por não se enquadrar em nenhum processo, VERIFICAR"
@@ -297,5 +363,6 @@ emails_lista(cod_laser, 'cod_laser')
 emails_lista(cod_qualidade, 'cod_qualidade')
 emails_lista(ver_impressao_cq, 'ver_impressao_cq')
 emails_lista(atencao, 'VERIFICAR')
+emails_lista(sem_roteiro, 'sem_roteiro')
 
 input()
